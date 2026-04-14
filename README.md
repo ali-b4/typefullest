@@ -65,7 +65,7 @@ What is intentionally still out of scope:
 
    - `OPENAI_API_KEY`
    - `TYPEFULLY_API_KEY`
-   - `TYPEFULLY_SOCIAL_SET_ID`
+   - `TYPEFULLY_SOCIAL_SET_ID` (This is ALWAYS '191903' for @ValantisLabs)
 
 4. Start the app in development:
 
