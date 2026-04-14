@@ -6,6 +6,7 @@ import type { Settings } from "../../shared/types.js";
 loadEnv();
 
 const rootDir = process.cwd();
+const defaultTypefullySocialSetId = "191903";
 
 function parsePort(value: string | undefined, fallback: number) {
   const parsed = Number.parseInt(value ?? "", 10);
@@ -33,7 +34,8 @@ export const appConfig = {
     "https://api.typefully.com",
   ).replace(/\/+$/, ""),
   typefullyApiKey: process.env.TYPEFULLY_API_KEY?.trim() ?? "",
-  typefullySocialSetId: process.env.TYPEFULLY_SOCIAL_SET_ID?.trim() ?? "",
+  typefullySocialSetId:
+    process.env.TYPEFULLY_SOCIAL_SET_ID?.trim() || defaultTypefullySocialSetId,
   openAiApiKey: process.env.OPENAI_API_KEY?.trim() ?? "",
   openAiDefaultModel: process.env.OPENAI_DEFAULT_MODEL?.trim() ?? "gpt-5.4-mini",
   openAiHighEffortModel:

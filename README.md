@@ -65,7 +65,6 @@ What is intentionally still out of scope:
 
    - `OPENAI_API_KEY`
    - `TYPEFULLY_API_KEY`
-   - `TYPEFULLY_SOCIAL_SET_ID` (This is ALWAYS '191903' for @ValantisLabs)
 
 4. Start the app in development:
 
@@ -104,7 +103,6 @@ Required:
 ```env
 OPENAI_API_KEY=
 TYPEFULLY_API_KEY=
-TYPEFULLY_SOCIAL_SET_ID=
 ```
 
 Defaulted:
@@ -121,6 +119,7 @@ DEBUG_TYPEFULLY=false
 Optional local overrides:
 
 ```env
+TYPEFULLY_SOCIAL_SET_ID=
 SQLITE_PATH=
 BRAND_RULES_PATH=
 BRAND_EXAMPLES_PATH=
@@ -128,7 +127,8 @@ BRAND_EXAMPLES_PATH=
 
 Notes:
 
-- If the API key can access exactly one Typefully social set, the app can resolve the social set automatically.
+- Typefullest defaults to social set `191903` for `@ValantisLabs`.
+- `TYPEFULLY_SOCIAL_SET_ID` is now just an override, not a required onboarding step.
 - The default SQLite file is `data/typefullest.sqlite`.
 - Brand context is loaded from `context/brand-rules.md` and `context/examples.md` unless overridden.
 

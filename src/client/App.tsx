@@ -89,8 +89,12 @@ export function App() {
   const [isBootstrapping, setIsBootstrapping] = useState(true);
   const [isLoadingDraft, setIsLoadingDraft] = useState(false);
   const [isRunningAi, setIsRunningAi] = useState(false);
+  const [activeAiLabel, setActiveAiLabel] = useState<string | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isDeletingDraft, setIsDeletingDraft] = useState(false);
+  const [isAssistantPopoverOpen, setIsAssistantPopoverOpen] = useState(false);
+  const [isConversationOpen, setIsConversationOpen] = useState(false);
+  const [composerTab, setComposerTab] = useState<"chat" | "context">("chat");
   const initialLoadRef = useRef(true);
 
   const orderedDrafts = useMemo(
@@ -339,6 +343,15 @@ export function App() {
     }
 
     setIsRunningAi(true);
+    setActiveAiLabel(
+      action === "draftFromNotes"
+        ? "Drafting from notes"
+        : action === "checkTone"
+          ? "Running diagnostic"
+          : action === "rewriteOnBrand"
+            ? "Rewriting to brand voice"
+            : "Sending to assistant",
+    );
     setNotice(null);
     setErrorMessage(null);
 
@@ -397,6 +410,7 @@ export function App() {
       );
     } finally {
       setIsRunningAi(false);
+      setActiveAiLabel(null);
     }
   }
 
@@ -535,12 +549,6 @@ export function App() {
     if (!bootstrap?.settings.openAiApiKeyConfigured) {
       missing.push("OPENAI_API_KEY");
     }
-    if (
-      bootstrap?.settings.typefullyApiKeyConfigured &&
-      !bootstrap.settings.configuredSocialSetId
-    ) {
-      missing.push("TYPEFULLY_SOCIAL_SET_ID (only if the key can access multiple social sets)");
-    }
     return missing;
   }, [bootstrap?.settings]);
 
@@ -552,6 +560,95 @@ export function App() {
           <h1>Typefullest</h1>
         </div>
         <div className="topbar-controls">
+          <div
+            className="assistant-popover-wrap"
+            onMouseEnter={() => setIsAssistantPopoverOpen(true)}
+            onMouseLeave={() => setIsAssistantPopoverOpen(false)}
+          >
+            <button
+              className="button button-secondary assistant-popover-trigger"
+              aria-expanded={isAssistantPopoverOpen}
+              aria-haspopup="dialog"
+              onClick={() => setIsAssistantPopoverOpen((open) => !open)}
+              onBlur={(event) => {
+                if (!event.currentTarget.parentElement?.contains(event.relatedTarget as Node)) {
+                  setIsAssistantPopoverOpen(false);
+                }
+              }}
+            >
+              Assistant info
+            </button>
+
+            {isAssistantPopoverOpen && (
+              <div className="assistant-popover" role="dialog" aria-label="Assistant info">
+                <div className="assistant-popover-header">
+                  <div>
+                    <p className="panel-label">Assistant</p>
+                    <h2>Revision controls</h2>
+                  </div>
+                  <button
+                    className="button button-secondary"
+                    onClick={() => void handleReloadBrandContext()}
+                  >
+                    Reload brand files
+                  </button>
+                </div>
+
+                <div
+                  className={`status-card ${
+                    (bootstrap?.brandContext.errors.length ?? 0) > 0
+                      ? "status-danger"
+                      : "status-ok"
+                  }`}
+                >
+                  <span>Brand context</span>
+                  <strong>
+                    {(bootstrap?.brandContext.errors.length ?? 0) > 0
+                      ? "Needs attention"
+                      : "Ready"}
+                  </strong>
+                  <small>
+                    Loaded: {relativeDate(bootstrap?.brandContext.lastLoadedAt ?? null)}
+                  </small>
+                </div>
+
+                {(bootstrap?.brandContext.errors.length ?? 0) > 0 && (
+                  <div className="callout callout-warning">
+                    {bootstrap?.brandContext.errors.map((error) => (
+                      <p key={error}>{error}</p>
+                    ))}
+                  </div>
+                )}
+
+                <div className="callout">
+                  <strong>Editorial help only</strong>
+                  <p>
+                    The assistant should revise tone, clarity, and style without adding
+                    new ideas or new content.
+                  </p>
+                </div>
+
+                <div className="callout">
+                  <strong>Chat steers revisions</strong>
+                  <p>
+                    Use the main AI panel for chat, diagnostics, rewrites, and review.
+                  </p>
+                </div>
+
+                <div className="action-grid">
+                  <div className="mini-legend">
+                    <strong>Diagnostic</strong>
+                    <p>Explains what feels on-brand or off-brand.</p>
+                  </div>
+                  <div className="mini-legend">
+                    <strong>Rewrite to brand voice</strong>
+                    <p>Revises the wording without changing the substance.</p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
           <label className="compact-control">
             <span>Model</span>
             <select
@@ -598,9 +695,7 @@ export function App() {
             </button>
           </div>
 
-          <div className="callout">
-            <strong>Manual refresh only.</strong>
-            <p>Click the button below to fetch latest updates from Typefully.</p>
+          <div className="refresh-control">
             <button className="button button-secondary" onClick={handleRefresh}>
               Fetch latest from Typefully
             </button>
@@ -764,7 +859,27 @@ export function App() {
                   </div>
                 </div>
 
-                {currentDraft?.latestSuggestion ? (
+                {isRunningAi ? (
+                  <div className="ai-loading-state" aria-live="polite">
+                    <div className="ai-loading-header">
+                      <span className="meta-chip">{activeAiLabel ?? "Working"}</span>
+                      <div className="ai-loading-dots" aria-hidden="true">
+                        <span />
+                        <span />
+                        <span />
+                      </div>
+                    </div>
+                    <p className="rationale">
+                      Typefullest is generating the next suggestion. This will update
+                      automatically when the response is ready.
+                    </p>
+                    <div className="ai-loading-bars" aria-hidden="true">
+                      <span />
+                      <span />
+                      <span />
+                    </div>
+                  </div>
+                ) : currentDraft?.latestSuggestion ? (
                   <div className="suggestion-layout">
                     <div className="suggestion-summary">
                       <p className="assessment">
@@ -820,13 +935,135 @@ export function App() {
                   </div>
                 )}
 
-                <div className="conversation-reference">
-                  <div className="field-heading">
-                    <div>
-                      <h4>Conversation trail</h4>
-                      <span>Reference only. Past prompts and assistant replies stay here.</span>
+                <div className="chat-composer">
+                  <div className="action-strip">
+                    <div className="field-heading">
+                      <div>
+                        <label>Revision actions</label>
+                        <span>
+                          These run against the draft plus any saved context, not against the
+                          chat box.
+                        </span>
+                      </div>
+                    </div>
+                    <div className="context-actions">
+                      <button
+                        className="button button-tool"
+                        disabled={!canUseAi || isRunningAi || trimmedSourceContext.length === 0}
+                        onClick={() =>
+                          void handleAiAction("draftFromNotes", {
+                            sourceContext: trimmedSourceContext,
+                          })
+                        }
+                      >
+                        {isRunningAi ? "Working..." : "Draft from notes"}
+                      </button>
+                      <button
+                        className="button button-tool"
+                        disabled={!canUseAi || isRunningAi || !hasSourceMaterial}
+                        onClick={() =>
+                          void handleAiAction("checkTone", {
+                            sourceContext: trimmedSourceContext || undefined,
+                          })
+                        }
+                      >
+                        {isRunningAi ? "Working..." : "Diagnostic"}
+                      </button>
+                      <button
+                        className="button button-tool button-tool-accent"
+                        disabled={!canUseAi || isRunningAi || !hasSourceMaterial}
+                        onClick={() =>
+                          void handleAiAction("rewriteOnBrand", {
+                            sourceContext: trimmedSourceContext || undefined,
+                          })
+                        }
+                      >
+                        {isRunningAi ? "Working..." : "Rewrite"}
+                      </button>
                     </div>
                   </div>
+
+                  <div className="composer-panel">
+                    <div className="segmented-control segmented-control-compact composer-tabs">
+                      <button
+                        className={composerTab === "chat" ? "active" : ""}
+                        onClick={() => setComposerTab("chat")}
+                      >
+                        Chat
+                      </button>
+                      <button
+                        className={composerTab === "context" ? "active" : ""}
+                        onClick={() => setComposerTab("context")}
+                      >
+                        Context
+                      </button>
+                    </div>
+
+                    {composerTab === "chat" ? (
+                      <div className="field-group">
+                        <div className="field-heading">
+                          <label htmlFor="chat-request">Chat</label>
+                          <span>Use this for one-off editorial instructions or questions.</span>
+                        </div>
+                        <textarea
+                          id="chat-request"
+                          value={chatInput}
+                          onChange={(event) => setChatInput(event.target.value)}
+                          placeholder="Ask a specific editorial question or give a one-off instruction."
+                          rows={4}
+                        />
+                        <div className="composer-actions">
+                          <button
+                            className="button button-primary"
+                            disabled={!canUseAi || isRunningAi || trimmedChatInput.length === 0}
+                            onClick={() => {
+                              void handleAiAction("chat", {
+                                prompt: trimmedChatInput,
+                                sourceContext: trimmedSourceContext || undefined,
+                              });
+                            }}
+                          >
+                            {isRunningAi ? "Sending..." : "Send to assistant"}
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="field-group">
+                        <div className="field-heading">
+                          <label htmlFor="source-context">Context</label>
+                          <span>
+                            Saved source material used by Draft from notes, Diagnostic, Rewrite,
+                            and chat.
+                          </span>
+                        </div>
+                        <textarea
+                          id="source-context"
+                          value={sourceContext}
+                          onChange={(event) => setSourceContext(event.target.value)}
+                          placeholder="Paste source material, rough copy, or extra context the assistant may use as editorial input."
+                          rows={5}
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <details
+                  className="conversation-reference"
+                  open={isConversationOpen}
+                  onToggle={(event) =>
+                    setIsConversationOpen((event.currentTarget as HTMLDetailsElement).open)
+                  }
+                >
+                  <summary className="conversation-summary">
+                    <div className="conversation-summary-copy">
+                      <h4>Conversation trail</h4>
+                      <span>Reference only. Open to review past prompts and replies.</span>
+                    </div>
+                    <span className="conversation-chevron" aria-hidden="true">
+                      {isConversationOpen ? "▾" : "▸"}
+                    </span>
+                  </summary>
                   <div className="history-list wide-history">
                     {(currentDraft?.chat ?? []).length === 0 ? (
                       <div className="empty-state compact">
@@ -844,87 +1081,7 @@ export function App() {
                       ))
                     )}
                   </div>
-                </div>
-
-                <div className="chat-composer">
-                  <div className="field-group">
-                    <div className="field-heading field-heading-split">
-                      <div>
-                        <label htmlFor="source-context">Context</label>
-                        <span>Used as source material for drafting, diagnostic, and rewrite.</span>
-                      </div>
-                      <div className="context-actions">
-                        <button
-                          className="button button-tool"
-                          disabled={!canUseAi || isRunningAi || trimmedSourceContext.length === 0}
-                          onClick={() =>
-                            void handleAiAction("draftFromNotes", {
-                              sourceContext: trimmedSourceContext,
-                            })
-                          }
-                        >
-                          {isRunningAi ? "Working..." : "Draft from notes"}
-                        </button>
-                        <button
-                          className="button button-tool"
-                          disabled={!canUseAi || isRunningAi || !hasSourceMaterial}
-                          onClick={() =>
-                            void handleAiAction("checkTone", {
-                              sourceContext: trimmedSourceContext || undefined,
-                            })
-                          }
-                        >
-                          {isRunningAi ? "Working..." : "Diagnostic"}
-                        </button>
-                        <button
-                          className="button button-tool button-tool-accent"
-                          disabled={!canUseAi || isRunningAi || !hasSourceMaterial}
-                          onClick={() =>
-                            void handleAiAction("rewriteOnBrand", {
-                              sourceContext: trimmedSourceContext || undefined,
-                            })
-                          }
-                        >
-                          {isRunningAi ? "Working..." : "Rewrite"}
-                        </button>
-                      </div>
-                    </div>
-                    <textarea
-                      id="source-context"
-                      value={sourceContext}
-                      onChange={(event) => setSourceContext(event.target.value)}
-                      placeholder="Paste source material, rough copy, or extra context the assistant may use as editorial input."
-                      rows={4}
-                    />
-                  </div>
-                  <div className="field-group">
-                    <div className="field-heading">
-                      <label htmlFor="chat-request">Chat</label>
-                      <span>Only used when you click Send to assistant.</span>
-                    </div>
-                    <textarea
-                      id="chat-request"
-                      value={chatInput}
-                      onChange={(event) => setChatInput(event.target.value)}
-                      placeholder="Ask a specific editorial question or give a one-off instruction."
-                      rows={4}
-                    />
-                  </div>
-                  <div className="composer-actions">
-                    <button
-                      className="button button-primary"
-                      disabled={!canUseAi || isRunningAi || trimmedChatInput.length === 0}
-                      onClick={() => {
-                        void handleAiAction("chat", {
-                          prompt: trimmedChatInput,
-                          sourceContext: trimmedSourceContext || undefined,
-                        });
-                      }}
-                    >
-                      {isRunningAi ? "Sending..." : "Send to assistant"}
-                    </button>
-                  </div>
-                </div>
+                </details>
               </section>
             </div>
           ) : (
@@ -936,63 +1093,6 @@ export function App() {
           )}
         </main>
 
-        <aside className="panel assistant-pane">
-          <div className="panel-header">
-            <div>
-              <p className="panel-label">Assistant</p>
-              <h2>Revision controls</h2>
-            </div>
-            <button className="button button-secondary" onClick={() => void handleReloadBrandContext()}>
-              Reload brand files
-            </button>
-          </div>
-
-          <div className={`status-card ${(bootstrap?.brandContext.errors.length ?? 0) > 0 ? "status-danger" : "status-ok"}`}>
-            <span>Brand context</span>
-            <strong>
-              {(bootstrap?.brandContext.errors.length ?? 0) > 0
-                ? "Needs attention"
-                : "Ready"}
-            </strong>
-            <small>
-              Loaded: {relativeDate(bootstrap?.brandContext.lastLoadedAt ?? null)}
-            </small>
-          </div>
-
-          {(bootstrap?.brandContext.errors.length ?? 0) > 0 && (
-            <div className="callout callout-warning">
-              {bootstrap?.brandContext.errors.map((error) => (
-                <p key={error}>{error}</p>
-              ))}
-            </div>
-          )}
-
-          <div className="callout">
-            <strong>Editorial help only</strong>
-            <p>
-              The assistant should revise tone, clarity, and style without adding
-              new ideas or new content.
-            </p>
-          </div>
-
-          <div className="callout">
-            <strong>Chat steers revisions</strong>
-            <p>
-              Use the wide AI output panel for chat, diagnostics, rewrites, and review.
-            </p>
-          </div>
-
-          <div className="action-grid">
-            <div className="mini-legend">
-              <strong>Diagnostic</strong>
-              <p>Explains what feels on-brand or off-brand.</p>
-            </div>
-            <div className="mini-legend">
-              <strong>Rewrite to brand voice</strong>
-              <p>Revises the wording without changing the substance.</p>
-            </div>
-          </div>
-        </aside>
       </div>
     </div>
   );
