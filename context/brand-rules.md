@@ -105,6 +105,7 @@ Do:
 - End with a clear CTA when linking ("Deposit now", "Stake now")
 - Back up any superlative ("largest", "first") with a number in the same sentence
 - Pair milestones with speed ("in under 4 days", "less than two weeks")
+- Keep each tweet in a thread to less than 280 characters; tweets with links can go over 280.
 
 Don't:
 - Ask questions as a post format
@@ -117,4 +118,4 @@ Don't:
 - Use common AI-generated sentence structure like: "It's not ____, it's _____" or repetitive, formulaic, symmetrical sentences.
 - Make useless and subjective claims like "we're innovative" or "truly revolutionary"
 - Open a tweet with an "@" handle
-- Write tweets longer than 280 characters
+- Include a link in the first tweet of a thread.

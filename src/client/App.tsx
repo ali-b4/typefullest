@@ -91,7 +91,6 @@ export function App() {
   const [isRunningAi, setIsRunningAi] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isDeletingDraft, setIsDeletingDraft] = useState(false);
-  const [detailTab, setDetailTab] = useState<"suggestion" | "history">("suggestion");
   const initialLoadRef = useRef(true);
 
   const orderedDrafts = useMemo(
@@ -391,7 +390,6 @@ export function App() {
         setChatInput("");
       }
 
-      setDetailTab("suggestion");
       setNotice("AI response ready for review.");
     } catch (error) {
       setErrorMessage(
@@ -753,23 +751,9 @@ export function App() {
                 <div className="insight-header">
                   <div>
                     <p className="panel-label">AI output</p>
-                    <h3>{detailTab === "suggestion" ? "Latest suggestion" : "Conversation trail"}</h3>
+                    <h3>Latest suggestion</h3>
                   </div>
                   <div className="insight-actions">
-                    <div className="segmented-control segmented-control-compact">
-                      <button
-                        className={detailTab === "suggestion" ? "active" : ""}
-                        onClick={() => setDetailTab("suggestion")}
-                      >
-                        Suggestion
-                      </button>
-                      <button
-                        className={detailTab === "history" ? "active" : ""}
-                        onClick={() => setDetailTab("history")}
-                      >
-                        Conversation
-                      </button>
-                    </div>
                     <button
                       className="button button-primary"
                       disabled={!currentDraft?.latestSuggestion}
@@ -780,57 +764,69 @@ export function App() {
                   </div>
                 </div>
 
-                {detailTab === "suggestion" ? (
-                  currentDraft?.latestSuggestion ? (
-                    <div className="suggestion-layout">
-                      <div className="suggestion-summary">
-                        <p className="assessment">
-                          {currentDraft.latestSuggestion.overallAssessment}
-                        </p>
-                        <p className="rationale">{currentDraft.latestSuggestion.rationale}</p>
-                        {currentDraft.latestSuggestion.offBrandIssues.length > 0 && (
-                          <div className="issue-list">
-                            <h4>What feels off</h4>
-                            {currentDraft.latestSuggestion.offBrandIssues.map((issue) => (
-                              <p key={issue}>{issue}</p>
-                            ))}
-                          </div>
-                        )}
-                        {currentDraft.latestSuggestion.whyItMatters.length > 0 && (
-                          <div className="issue-list">
-                            <h4>Why it matters</h4>
-                            {currentDraft.latestSuggestion.whyItMatters.map((item) => (
-                              <p key={item}>{item}</p>
-                            ))}
-                          </div>
-                        )}
-                      </div>
+                {currentDraft?.latestSuggestion ? (
+                  <div className="suggestion-layout">
+                    <div className="suggestion-summary">
+                      <p className="assessment">
+                        {currentDraft.latestSuggestion.overallAssessment}
+                      </p>
+                      <p className="rationale">{currentDraft.latestSuggestion.rationale}</p>
+                      {currentDraft.latestSuggestion.offBrandIssues.length > 0 && (
+                        <div className="issue-list">
+                          <h4>What feels off</h4>
+                          {currentDraft.latestSuggestion.offBrandIssues.map((issue) => (
+                            <p key={issue}>{issue}</p>
+                          ))}
+                        </div>
+                      )}
+                      {currentDraft.latestSuggestion.whyItMatters.length > 0 && (
+                        <div className="issue-list">
+                          <h4>Why it matters</h4>
+                          {currentDraft.latestSuggestion.whyItMatters.map((item) => (
+                            <p key={item}>{item}</p>
+                          ))}
+                        </div>
+                      )}
+                    </div>
 
-                      <div className="review-columns">
-                        <div>
-                          <h4>Current</h4>
-                          <div className="copy-preview">
-                            {(editorState?.posts ?? []).map((post) => (
-                              <p key={post.id}>{post.text || "Blank post"}</p>
-                            ))}
-                          </div>
-                        </div>
-                        <div>
-                          <h4>Proposed</h4>
-                          <div className="copy-preview">
-                            {currentDraft.latestSuggestion.proposedPosts.map((post, index) => (
-                              <p key={`${post.id}-${index}`}>{post.text}</p>
-                            ))}
-                          </div>
+                    {currentDraft.latestSuggestion.action === "rewriteOnBrand" && (
+                      <div>
+                        <h4>Proposed thread</h4>
+                        <div className="copy-preview-stack">
+                          {currentDraft.latestSuggestion.proposedPosts.map((post, index) => (
+                            <section className="copy-preview-card" key={`${post.id}-${index}`}>
+                              <div className="draft-copy-top">
+                                <span className="meta-chip">Tweet {index + 1}</span>
+                                <span
+                                  className={`count-chip ${
+                                    post.text.length > 280 ? "count-over" : ""
+                                  }`}
+                                >
+                                  {post.text.length}/280
+                                </span>
+                              </div>
+                              <div className="copy-preview">
+                                <p>{post.text || "Blank post"}</p>
+                              </div>
+                            </section>
+                          ))}
                         </div>
                       </div>
-                    </div>
-                  ) : (
-                    <div className="empty-state compact">
-                      Run a diagnostic or rewrite to stage a reviewable suggestion.
-                    </div>
-                  )
+                    )}
+                  </div>
                 ) : (
+                  <div className="empty-state compact">
+                    Run a diagnostic or rewrite to stage a reviewable suggestion.
+                  </div>
+                )}
+
+                <div className="conversation-reference">
+                  <div className="field-heading">
+                    <div>
+                      <h4>Conversation trail</h4>
+                      <span>Reference only. Past prompts and assistant replies stay here.</span>
+                    </div>
+                  </div>
                   <div className="history-list wide-history">
                     {(currentDraft?.chat ?? []).length === 0 ? (
                       <div className="empty-state compact">
@@ -848,7 +844,7 @@ export function App() {
                       ))
                     )}
                   </div>
-                )}
+                </div>
 
                 <div className="chat-composer">
                   <div className="field-group">
@@ -919,7 +915,6 @@ export function App() {
                       className="button button-primary"
                       disabled={!canUseAi || isRunningAi || trimmedChatInput.length === 0}
                       onClick={() => {
-                        setDetailTab("history");
                         void handleAiAction("chat", {
                           prompt: trimmedChatInput,
                           sourceContext: trimmedSourceContext || undefined,
